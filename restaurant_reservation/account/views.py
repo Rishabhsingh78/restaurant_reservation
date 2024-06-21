@@ -50,3 +50,12 @@ def profile(request):
     serializer = UserProfileSerializer(user)
     return Response(serializer.data)
 
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def logout(request):
+    try:
+        request.user.auth_token.delete()
+        return Response({"message": "Successfully logged out."}, status=status.HTTP_200_OK)
+    
+    except(AttributeError, Token.DoesNotExist):
+        return Response({"error": "Invalid request"}, status=status.HTTP_400_BAD_REQUEST)
