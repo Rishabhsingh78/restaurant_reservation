@@ -1,13 +1,17 @@
 from .models import User
-from .serializer import UserSerializer,LoginSerializer,UserProfileSerializer,ChangePasswordSerializer
+from .serializer import UserSerializer,LoginSerializer,UserProfileSerializer,ChangePasswordSerializer,ForgetPasswordRequestSeriazlier,PasswordResetConfirmSerializer
 from rest_framework import status,generics
 from rest_framework.decorators import api_view,permission_classes
-from django.views.decorators.csrf import csrf_exempt
 from rest_framework.response import Response
 from rest_framework.authtoken.models import Token
 from django.contrib.auth import authenticate
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from django.contrib.auth import update_session_auth_hash
+from django.contrib.auth.tokens import default_token_generator
+from django.core.mail import send_mail
+from django.urls import reverse
+from django.utils.http import urlsafe_base64_encode
+from django.utils.encoding import force_bytes
 
 class UserListView(generics.ListAPIView):  # this the api for the showing the all the user profile in the list form
     queryset = User.objects.all()
@@ -76,4 +80,44 @@ def changePassword(request):
         update_session_auth_hash(request, user)
         return Response({"message": "Password updated successfully"}, status=status.HTTP_200_OK)
     
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST'])
+def request_Password(request):
+    serializer = ForgetPasswordRequestSeriazlier(data = request.data)
+
+    if serializer.is_valid():
+        email = serializer.validated_data['email']
+        user = User.objects.get(email = email)
+
+        token = default_token_generator.make_token(user)
+        uid = urlsafe_base64_encode(force_bytes(user.pk))
+        password_reset_url = request.build_absolute_uri(reverse('password_reset_confirm', kwargs={'uidb64': uid, 'token': token}))
+
+        send_mail(
+            'Password Reset Request',
+            f'Click the link below to reset your password:\n{password_reset_url}',
+            'from@example.com',
+            [user.email],
+            fail_silently=False,
+        )
+
+        return Response({'message':'Password link sent to the user email'},status=status.HTTP_200_OK)
+    
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST'])
+def password_reset_confirm(request, uidb64, token):
+    print("AKAMAI")
+    serializer = PasswordResetConfirmSerializer(data = request.data)
+    print("google",serializer)
+    serializer.context['uidb64'] = uidb64
+    serializer.context['token'] = token
+
+    if serializer.is_valid():
+        print("AMAZON")
+        serializer.save()
+        return Response({'message':'Password has reset Successfully'},status=status.HTTP_200_OK)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
