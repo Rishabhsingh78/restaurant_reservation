@@ -1,5 +1,5 @@
-from .models import User
-from .serializer import UserSerializer,LoginSerializer,UserProfileSerializer,ChangePasswordSerializer,ForgetPasswordRequestSeriazlier,PasswordResetConfirmSerializer
+from .models import User,Slot
+from .serializer import UserSerializer,LoginSerializer,UserProfileSerializer,ChangePasswordSerializer,ForgetPasswordRequestSeriazlier,PasswordResetConfirmSerializer,SlotSerializer
 from rest_framework import status,generics
 from rest_framework.decorators import api_view,permission_classes
 from rest_framework.response import Response
@@ -110,14 +110,52 @@ def request_Password(request):
 
 @api_view(['POST'])
 def password_reset_confirm(request, uidb64, token):
-    print("AKAMAI")
     serializer = PasswordResetConfirmSerializer(data = request.data)
-    print("google",serializer)
     serializer.context['uidb64'] = uidb64
     serializer.context['token'] = token
-
     if serializer.is_valid():
-        print("AMAZON")
         serializer.save()
         return Response({'message':'Password has reset Successfully'},status=status.HTTP_200_OK)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET','POST']) # this api is for creating and see the slots of all
+def slot_list_create(request):
+    if request.method == 'GET':
+        slots = Slot.objects.all()
+        serializer = SlotSerializer(slots,many =True)
+        return Response(serializer.data)
+    elif request.method == 'POST':
+        serializer = SlotSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({
+            "message": "Slot created successfully",
+            "slot": serializer.data
+        }, status=status.HTTP_201_CREATED)
+        else:
+            return Response(serializer.errors,status=status.HTTP_400_BAD_REQUEST)
+    return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+
+@api_view(['PUT','DELETE','GET']) # this will be update , delete and see the slots
+def slot_detail(request,pk):
+    try:
+        slot = Slot.objects.get(pk = pk)
+    except Slot.DoesNotExist:
+        return Response({"message":"User not Exits"},status=status.HTTP_400_BAD_REQUEST)
+    
+    if request.method == 'GET':
+        serializer = SlotSerializer(slot)
+        return Response(serializer.data)
+    
+    if request.method == 'PUT':
+        serializer = SlotSerializer(slot,data= request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    if request.method == 'DELETE':
+        slot.delete()
+        return Response({"message":"successfully delete"},status=status.HTTP_204_NO_CONTENT)
