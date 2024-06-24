@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User
+from .models import User,Slot
 from django.contrib.auth import authenticate
 from rest_framework.exceptions import AuthenticationFailed
 from django.contrib.auth.password_validation import validate_password
@@ -99,3 +99,9 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
         user.set_password(self.validated_data['new_password'])
         user.save()
         return user
+
+class SlotSerializer(serializers.ModelSerializer): # this is for the slot booking
+    id = serializers.IntegerField(read_only=True)
+    class Meta:
+        model = Slot
+        fields = ['id', 'date', 'start_time', 'end_time', 'location']
