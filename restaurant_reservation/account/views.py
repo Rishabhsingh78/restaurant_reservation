@@ -1,5 +1,5 @@
-from .models import User,Slot
-from .serializer import UserSerializer,LoginSerializer,UserProfileSerializer,ChangePasswordSerializer,ForgetPasswordRequestSeriazlier,PasswordResetConfirmSerializer,SlotSerializer
+from .models import User,Slot,Reservation
+from .serializer import UserSerializer,LoginSerializer,UserProfileSerializer,ChangePasswordSerializer,ForgetPasswordRequestSeriazlier,PasswordResetConfirmSerializer,SlotSerializer,ReservationSerializer
 from rest_framework import status,generics
 from rest_framework.decorators import api_view,permission_classes
 from rest_framework.response import Response
@@ -118,7 +118,66 @@ def password_reset_confirm(request, uidb64, token):
         return Response({'message':'Password has reset Successfully'},status=status.HTTP_200_OK)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+@api_view(['GET','POST']) # this api is for creating and see the slots of all
+def reservation_list_create(request):
+    if request.method == 'GET':
+        slots = Reservation.objects.all()
+        serializer = ReservationSerializer(slots,many =True)
+        return Response(serializer.data)
+    elif request.method == 'POST':
+        slot_id = request.data.get('slot_id')
+        print("asdfadsfadsfa",slot_id)
+        print(f"Received slot_id: {slot_id}") 
+        table_number = request.data.get('table_number')
+        name = request.data.get('name')
+        email = request.data.get('email')
+        phone = request.data.get('phone')
+        guests = request.data.get('guests')
 
+        # Check if the slot already exists with the given table number
+        if Reservation.objects.filter(slot__id=slot_id, slot__table_number=table_number).exists():
+            return Response({'error': 'A reservation for this slot and table number already exists.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Ensure the slot exists
+        try:
+            slot = Slot.objects.get(id=slot_id)
+        except Slot.DoesNotExist:
+            return Response({'error': 'Slot does not exist.'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Create a new reservation
+        reservation = Reservation.objects.create(
+            slot=slot,
+            name=name,
+            email=email,
+            phone=phone,
+            guests=guests
+        )
+        serializer = ReservationSerializer(reservation)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+@api_view(['PUT','DELETE','GET']) # this will be update , delete and see the slots
+def reservation_detail(request,pk):
+    try:
+        slot = Reservation.objects.get(pk = pk)
+    except Reservation.DoesNotExist:
+        return Response({"message":"User not Exits"},status=status.HTTP_400_BAD_REQUEST)
+    
+    if request.method == 'GET':
+        serializer = ReservationSerializer(slot)
+        return Response(serializer.data)
+    
+    if request.method == 'PUT':
+        serializer = ReservationSerializer(slot,data= request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    if request.method == 'DELETE':
+        slot.delete()
+        return Response({"message":"successfully delete"},status=status.HTTP_204_NO_CONTENT)
+        
 @api_view(['GET','POST']) # this api is for creating and see the slots of all
 def slot_list_create(request):
     if request.method == 'GET':
@@ -126,16 +185,21 @@ def slot_list_create(request):
         serializer = SlotSerializer(slots,many =True)
         return Response(serializer.data)
     elif request.method == 'POST':
+        date = request.data.get('date')
+        start_time = request.data.get('start_time')
+        end_time = request.data.get('end_time')
+        location = request.data.get('location')
+        table_number = request.data.get('table_number')
+
+        # Check for duplicate slot
+        if Slot.objects.filter(date=date, start_time=start_time, end_time=end_time, location=location, table_number=table_number).exists():
+            return Response({'error': 'Slot with these details already exists.'}, status=status.HTTP_400_BAD_REQUEST)
+
         serializer = SlotSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
-            return Response({
-            "message": "Slot created successfully",
-            "slot": serializer.data
-        }, status=status.HTTP_201_CREATED)
-        else:
-            return Response(serializer.errors,status=status.HTTP_400_BAD_REQUEST)
-    return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(['PUT','DELETE','GET']) # this will be update , delete and see the slots

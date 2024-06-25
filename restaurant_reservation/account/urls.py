@@ -12,4 +12,6 @@ urlpatterns = [
     path('password-reset-confirm/<uidb64>/<token>/', views.password_reset_confirm, name='password_reset_confirm'),
     path('slots/', views.slot_list_create, name='slot-list-create'),
     path('slots/<int:pk>/', views.slot_detail, name='slot-detail'),
+    path('reservation/', views.reservation_list_create, name='reservation-list-create'),
+    path('reservation/<int:pk>/', views.reservation_detail, name='reservation-detail'),
 ]
